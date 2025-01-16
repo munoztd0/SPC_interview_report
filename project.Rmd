@@ -1,0 +1,229 @@
+---
+title: "Ruritania Adult Population Analysis"
+# subtitle: ""
+author: "David Munoz Tord"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+repro:
+  packages:
+    - tidyverse
+    - aaronpeikert/repro@adb5fa569
+    - ggplot2
+    - echarts4r
+    - skimr
+    - DataExplorer
+    - janitor
+    - viridis
+  scripts:
+    - R/clean.R
+  data:
+    dtf: data/data.csv
+output:
+  html_document:
+    includes:
+    code_folding: "hide"
+    toc: true
+    toc_float: false
+    number_sections: false
+---
+
+```{r setup, include=FALSE}
+# Install and load required packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  tidyverse,
+  plotly,
+  kableExtra,
+  DT,
+  viridis,
+  hrbrthemes,
+  scales
+)
+
+# Setup options
+options(width = 999)
+options(tibble.print_min = 10, warn = -1)
+theme_set(theme_ipsum())
+
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  out.width = "100%"
+)
+
+# Read the data
+data <- read.csv("data/data.csv", stringsAsFactors = FALSE)
+```
+
+# Introduction
+
+This interactive report analyzes the adult population of Ruritania, providing dynamic visualizations and insights into demographics, employment, and income distribution.
+
+# Population Overview
+
+## Total Adult Population
+```{r}
+total_adults <- sum(data$fweight)
+data.frame(
+  Metric = "Total Adults", 
+  Value = format(total_adults, big.mark = ",")
+) %>%
+  kbl(escape = FALSE) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, color = "#2c3e50")
+```
+
+## Gender Distribution
+```{r}
+gender_dist <- data %>%
+  group_by(sex) %>%
+  summarize(Population = round(sum(fweight))) %>%  # Rounded to integers
+  mutate(Percentage = Population / sum(Population) * 100)
+
+plot_ly(gender_dist, labels = ~sex, values = ~Population, type = 'pie',
+        hole = 0.6,
+        marker = list(colors = viridis(2))) %>%
+  layout(
+    title = list(text = "Gender Distribution ", y = 0.6, x=0.46),
+    showlegend = TRUE,
+    annotations = list(
+      text = paste0("Total: ", format(round(sum(gender_dist$Population)), big.mark = ",")),
+      showarrow = FALSE,
+      font = list(size = 20)
+    )
+  )
+```
+
+
+
+## Income Distribution
+```{r}
+
+# Violin plot with facets by employment
+plot_ly(data = data) %>%
+  add_trace(
+    type = "violin",
+    x = ~interaction(employed, sex),
+    y = ~income,
+    box = list(visible = TRUE),
+    points = "outliers",
+    color = ~interaction(employed, sex),
+    colors = viridis(4)
+  ) %>%
+  layout(
+    title = "Income Distribution by Employment Status and Gender",
+    xaxis = list(title = "Gender"),
+    yaxis = list(
+      title = "Income (log scale)",
+      type = "log",
+      tickformat = "$,",
+      hoverformat = "$,.2f"
+    ),
+    facet_row = ~employed, # Facet by employment status
+    showlegend = TRUE
+  )
+
+# Density plot with facets by employment
+plot_ly(data = data) %>%
+  add_histogram(
+    x = ~income,
+    color = ~sex,
+    colors = viridis(2),
+    nbinsx = 50,
+    histnorm = "probability density",
+    opacity = 0.7
+  ) %>%
+  layout(
+    title = "Income Density Distribution by Gender (Log Scale)",
+    xaxis = list(
+      title = "Income (log scale)",
+      type = "log",
+      tickformat = "$,",
+      hoverformat = "$,.2f"
+    ),
+    yaxis = list(
+      title = "Density"
+    ),
+    facet_row = ~employed, # Facet by employment status
+    barmode = "overlay",
+    showlegend = TRUE
+  )
+
+```
+
+## Mean Income by Province
+```{r}
+mean_income_data <- data %>%
+  group_by(province, sex) %>%
+  summarize(
+    Mean_Income = mean(income, na.rm = TRUE),
+    SE = sd(income, na.rm = TRUE) / sqrt(n())
+  )
+
+plot_ly() %>%
+  add_trace(
+    data = mean_income_data,
+    x = ~province,
+    y = ~Mean_Income,
+    color = ~sex,
+    type = "bar",
+    colors = viridis(2),
+    opacity = 0.7,  # Added transparency
+    error_y = list(
+      type = "data",
+      array = ~SE * 1.96,
+      visible = TRUE,
+      color = "#2c3e50",
+      thickness = 1,
+      width = 3
+    )
+  ) %>%
+  layout(
+    title = "Mean Income by Province and Gender",
+    barmode = "group",
+    xaxis = list(title = "Province"),
+    yaxis = list(
+      title = "Mean Income",
+      tickformat = "$,",
+      hoverformat = "$,.2f"
+    ),
+    showlegend = TRUE
+  )
+``` 
+
+## Income Inequality
+
+# Gini Coefficient
+### Calculation
+```{r}
+# Calculate Gini coefficient
+gini <- function(x, w = NULL) {
+  if (is.null(w)) w <- rep(1, length(x))
+  x <- x[order(x)]
+  w <- w[order(x)]
+  N <- sum(w)
+  C <- cumsum(w)
+  G <- sum(w * (2 * C - N - w)) / (N * sum(x))
+  return(G)
+}
+gini_value <- gini(data$income, data$fweight)
+data.frame(Metric = "Gini Coefficient", Value = round(gini_value, 4)) %>% kable()
+```
+
+
+# Confidence Interval for Female Mean Income
+### Calculation
+```{r}
+# Calculate confidence interval for females
+female_income <- data %>% filter(sex == "Female")
+mean_income_female <- mean(female_income$income, na.rm = TRUE)
+se <- sd(female_income$income, na.rm = TRUE) / sqrt(nrow(female_income))
+ci <- c(mean_income_female - 1.96 * se, mean_income_female + 1.96 * se)
+data.frame(Metric = c("Mean Income", "Lower CI", "Upper CI"), 
+           Value = round(c(mean_income_female, ci[1], ci[2]), 2)) %>% kable(col.names = c("Metric", "Value"))
+```

@@ -1,0 +1,26 @@
+{
+    "id": "1EED71C5",
+    "path": "~/Repos/SPC/SPC_interview_report/R/clean.R",
+    "project_path": "R/clean.R",
+    "type": "r_source",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1737036712790.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "3,4",
+        "scrollLine": "3"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1737037563,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1737037563467,
+    "read_only": false,
+    "read_only_alternatives": []
+}

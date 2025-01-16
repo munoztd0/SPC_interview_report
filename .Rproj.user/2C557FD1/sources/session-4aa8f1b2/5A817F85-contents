@@ -1,0 +1,175 @@
+
+
+
+```{r, Exercise_2_2}
+# Create a mapping dictionary from the classification DataFrame
+classification_map <- setNames(source$improved_water_source, source$drinking_water_source)
+
+# Create a new column based on the new classification
+data$drinking_water_classification <- classification_map[data$drinking_water_source]
+
+```
+
+
+
+
+```{r, Exercise_3_a}
+
+# Filter the data to include only "Baseline" and "Endline" records
+filtered_data <- subset(data, data_collection_round %in% c("Baseline", "End-line"))
+
+# Display some rows to confirm the filtering
+filtered_data[sample(nrow(filtered_data), 5), ]
+
+# Create a DataFrame to analyze single-headed households and water source improvements
+single_headed_analysis <- filtered_data %>%
+  group_by(data_collection_round, single_headed_household, drinking_water_classification) %>%
+  summarize(Count = n())
+
+# Create a plot
+ggplot(data = single_headed_analysis %>% filter(single_headed_household == "Yes"),
+       aes(x = data_collection_round, y = Count, fill = drinking_water_classification)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Access to Improved Water Sources for Single-Headed Households: Baseline vs Endline",
+       x = "Data Collection Round",
+       y = "Count of Households") +
+  viridis::scale_fill_viridis(discrete = TRUE) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+
+```
+
+It appears that the number of single-headed households with access to improved water sources has increased from the baseline to the "End-line" round. 
+
+This suggests that single-headed households did receive more improvements in access to better water sources.
+
+```{r statsA}
+
+# Create the contingency table from the filtered data
+contingency_table_single_headed <- table(filtered_data$data_collection_round, filtered_data$drinking_water_classification)
+
+# Perform the chi-square test
+chi2_test_result_single_headed <- chisq.test(contingency_table_single_headed)
+
+contingency_table_single_headed
+
+# Print the p-value
+print(paste("p-value:", chi2_test_result_single_headed$p.value))
+
+
+```
+### Comments
+
+The chi-square test for independence yields a p-value of approximately 0.038.
+
+#Since the p-value is less than 0.05, we can reject the null hypothesis and conclude that there is a statistically significant association between the data collection round (Baseline vs End-line) and access to improved water sources among single-headed households. In simpler terms, single-headed households did receive statistically significant improvements in access to better water sources from the Baseline to the End-line.
+
+
+### Assumptions
+
+The term "single-headed households" is understood to mean households with a single adult responsible for the family, although this was not explicitly defined in the data.
+The data accurately represents the population, and there is no sampling bias.
+
+
+## Question 3.b
+```{r, Exercise_3_b}
+
+
+#redo the analysis for diarrhea cases with the corrected filter
+diarrhea_analysis_corrected <- filtered_data %>%
+  group_by(data_collection_round, diarrhea_under_5, drinking_water_classification) %>%
+  summarize(Count = n())
+
+# Filter the DataFrame to include only households with Improved water sources
+diarrhea_analysis_improved_corrected <- diarrhea_analysis_corrected %>%
+  filter(drinking_water_classification == 'Improved water source')
+
+# Create a plot for diarrhea cases
+ggplot(data = diarrhea_analysis_improved_corrected,
+       aes(x = data_collection_round, y = Count, fill = diarrhea_under_5)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Effect of Improved Water Sources on Diarrhea Cases in Children Under 5: Baseline vs End-line",
+       x = "Data Collection Round",
+       y = "Count of Households") +
+  scale_fill_discrete(name = "Diarrhea under 5") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "bottom",
+        legend.title = element_blank(),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_text(size = 12),
+        panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank())
+
+
+```
+
+The plot shows the count of households with improved water sources reporting cases of diarrhea in children under 5 during the baseline and "End-line" data collection rounds.
+
+As observed, the number of households reporting cases of diarrhea in children under 5 has decreased from the baseline to the "End-line" when improved water sources are in use. This suggests that the improvements in water sources may have had a positive effect in reducing cases of diarrhea in children under 5.
+
+
+```{r statsB}
+
+# Create the contingency table from the filtered data
+contingency_table_diarrhea <- table(filtered_data$data_collection_round, filtered_data$diarrhea_under_5)
+
+# Perform the chi-square test
+chi2_test_result <- chisq.test(contingency_table_diarrhea)
+
+contingency_table_diarrhea
+
+# Print the p-value
+print(paste("p-value:", chi2_test_result$p.value))
+
+
+```
+
+
+The chi-square test for independence yields a p-value of approximately 0.0015
+
+
+Since the p-value is much less than  0.05, we can reject the null hypothesis and conclude that there is a statistically significant association between the data collection round (Baseline vs End-line) and cases of diarrhea in children under 5 among households with improved water sources. In simpler terms, the improvements in water sources have had a statistically significant positive effect in reducing cases of diarrhea in children under 5.
+
+
+### Assumptions
+
+Cases of diarrhea are self-reported and therefore assume accurate reporting from the households.
+The "improved water sources" are assumed to be the primary source of drinking water for the households, although this may not always be the case.
+The data is assumed to be representative of the larger population.
+
+
+## Conclusions
+
+By complementing the statistical analysis with these visualizations, we get both a macro and micro-level understanding of the impact of the water improvement project. The graphs quickly convey the overall trend, while the statistical tests provide a measure of the significance of these observations.
+
+
+
+# Load necessary libraries
+library(ggplot2)
+
+# Create a scatter plot
+ggplot(data, aes(x = income, y = employed, color = sex)) +
+  geom_point(alpha = 0.7) +
+  labs(
+    title = "Income vs. Employment by Gender",
+    x = "Income",
+    y = "Employment Status"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title.x = element_text(size = 12),
+    axis.title.y = element_text(size = 12)
+  )

@@ -1,0 +1,7 @@
+"0","# Calculate confidence interval for females"
+"0","female_income <- data %>% filter(sex == ""Female"")"
+"0","mean_income_female <- mean(female_income$income, na.rm = TRUE)"
+"0","se <- sd(female_income$income, na.rm = TRUE) / sqrt(nrow(female_income))"
+"0","ci <- c(mean_income_female - 1.96 * se, mean_income_female + 1.96 * se)"
+"0","data.frame(Metric = c(""Mean Income"", ""Lower CI"", ""Upper CI""), "
+"0","           Value = round(c(mean_income_female, ci[1], ci[2]), 2)) %>% kable(col.names = c(""Metric"", ""Value""))"

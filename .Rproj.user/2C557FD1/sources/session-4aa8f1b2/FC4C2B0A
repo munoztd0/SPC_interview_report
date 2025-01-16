@@ -1,0 +1,32 @@
+{
+    "id": "FC4C2B0A",
+    "path": "~/Repos/SPC/SPC_interview_report/project.Rmd",
+    "project_path": "project.Rmd",
+    "type": "r_markdown",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1737036696891.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "233,3",
+        "scrollLine": "229",
+        "last_setup_crc32": "4aa8f1b2b511d699",
+        "rmdVisualMode": "false",
+        "rmdVisualWrapConfigured": "true",
+        "docOutlineVisible": "1",
+        "rmdVisualModeLocation": "5905:643.6363525390625",
+        "rmdVisualCollapsedChunks": ""
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1737040035,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1737040234156,
+    "read_only": false,
+    "read_only_alternatives": []
+}
