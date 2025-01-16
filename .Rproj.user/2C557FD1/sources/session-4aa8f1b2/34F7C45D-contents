@@ -1,0 +1,239 @@
+---
+  title: "Ruritania Adult Population Analysis"
+author: "David Munoz Tord"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+repro:
+  packages:
+  - tidyverse
+- ggplot2
+- plotly
+- kableExtra
+- viridis
+data:
+  dtf: data/data.csv
+output:
+  html_document:
+  includes:
+  code_folding: "hide"
+toc: true
+toc_float: false
+number_sections: false
+---
+  
+  ```{r setup, include=FALSE}
+# Install and load required packages
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(
+  tidyverse,
+  plotly,
+  kableExtra,
+  viridis,
+  scales
+)
+
+# Setup options
+options(width = 999)
+theme_set(theme_minimal())
+
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center",
+  out.width = "100%"
+)
+
+# Read the data
+data <- read.csv("data/data.csv", stringsAsFactors = FALSE)
+```
+
+## 1. Total Adult Population
+```{r}
+total_adults <- sum(data$fweight)
+data.frame(
+  Metric = "Total Adults", 
+  Value = format(total_adults, big.mark = ",")
+) %>%
+  kbl() %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 2. Gender Distribution
+```{r}
+gender_dist <- data %>%
+  group_by(sex) %>%
+  summarize(Population = round(sum(fweight))) %>%  # Rounded to integers
+  mutate(Percentage = Population / sum(Population) * 100)
+
+plot_ly(gender_dist, labels = ~sex, values = ~Population, type = 'pie',
+        hole = 0.6,
+        marker = list(colors = viridis(2))) %>%
+  layout(
+    title = list(text = "Gender Distribution ", y = 0.6, x=0.46),
+    showlegend = TRUE,
+    annotations = list(
+      text = paste0("Total: ", format(round(sum(gender_dist$Population)), big.mark = ",")),
+      showarrow = FALSE,
+      font = list(size = 20)
+    )
+  )
+
+gender_dist %>%
+  kbl(col.names = c("Gender", "Population", "Percentage (%)")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 3. Adults in Each Province
+```{r}
+province_dist <- data %>%
+  group_by(province) %>%
+  summarize(Population = sum(fweight)) %>%
+  mutate(Percentage = round(Population / sum(Population) * 100, 2))
+
+province_dist %>%
+  kbl(col.names = c("Province", "Population", "Percentage (%)")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 4. Proportion of Employed Adults
+```{r}
+employment_rate <- data %>% 
+  summarize(
+    Employed = sum(fweight[employed == 1]),
+    Total = sum(fweight)
+  ) %>% 
+  mutate(Proportion_Employed = round(Employed / Total * 100, 2))
+
+data.frame(
+  Metric = c("Employed Adults", "Total Adults", "Proportion Employed (%)"), 
+  Value = c(
+    format(employment_rate$Employed, big.mark = ","),
+    format(employment_rate$Total, big.mark = ","),
+    paste0(employment_rate$Proportion_Employed, "%")
+  )
+) %>%
+  kbl() %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 5. Mean Income by Gender and Province
+```{r}
+mean_income_data <- data %>%
+  group_by(province, sex) %>%
+  summarize(
+    Mean_Income = mean(income, na.rm = TRUE),
+    SE = sd(income, na.rm = TRUE) / sqrt(n())
+  )
+
+mean_income_data %>%
+  kbl(col.names = c("Province", "Gender", "Mean Income", "Standard Error")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 6. Income Distribution by Employment Status and Gender
+```{r}
+ggplot(data, aes(x = sex, y = income, fill = interaction(employed, sex))) +
+  geom_violin(alpha = 0.7, scale = "width", trim = FALSE) +
+  geom_boxplot(width = 0.1, outlier.size = 0.5, alpha = 0.6) +
+  scale_y_log10() +
+  scale_fill_viridis_d() +
+  labs(
+    title = "Income Distribution by Employment Status and Gender",
+    x = "Gender",
+    y = "Income (Log Scale)"
+  ) +
+  facet_wrap(~ employed, labeller = labeller(employed = c(`0` = "Unemployed", `1` = "Employed"))) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(size = 14, face = "bold"),
+    axis.title = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
+```
+
+## 7. Gini Coefficient
+```{r}
+# Calculate Gini Coefficient
+gini_coefficient <- function(income, weights) {
+  sorted_indices <- order(income)
+  sorted_income <- income[sorted_indices]
+  sorted_weights <- weights[sorted_indices]
+  
+  cum_weights <- cumsum(sorted_weights) / sum(sorted_weights)
+  cum_income <- cumsum(sorted_income * sorted_weights) / sum(sorted_income * sorted_weights)
+  
+  gini <- 1 - sum((cum_income[-length(cum_income)] + cum_income[-1]) * diff(cum_weights))
+  return(gini)
+}
+
+gini <- gini_coefficient(data$income, data$fweight)
+
+# Output Gini Coefficient
+data.frame(
+  Metric = "Gini Coefficient",
+  Value = round(gini, 3)
+) %>%
+  kbl() %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 8. Confidence Interval for Female Mean Income
+```{r}
+# Filter data for females
+female_data <- data %>% filter(sex == "Female")
+
+# Calculate weighted mean and standard error
+weighted_mean <- sum(female_data$income * female_data$fweight) / sum(female_data$fweight)
+weighted_variance <- sum(((female_data$income - weighted_mean)^2) * female_data$fweight) / sum(female_data$fweight)
+weighted_se <- sqrt(weighted_variance / nrow(female_data))
+
+# 95% confidence interval
+ci_lower <- weighted_mean - qnorm(0.975) * weighted_se
+ci_upper <- weighted_mean + qnorm(0.975) * weighted_se
+
+data.frame(
+  Metric = c("Weighted Mean Income", "Lower 95% CI", "Upper 95% CI"),
+  Value = c(
+    round(weighted_mean, 2),
+    round(ci_lower, 2),
+    round(ci_upper, 2)
+  )
+) %>%
+  kbl() %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center"
+  )
+```
+
+## 9. Factors to Improve Confidence Interval
+To improve the confidence interval:
+  1. Increase the sample size to reduce variability.
+2. Ensure accurate weighting to reflect the population.
+3. Account for any missing or outlier data points.
+4. Consider stratified sampling to improve representativeness across groups.
